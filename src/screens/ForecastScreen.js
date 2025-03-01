@@ -1,10 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { WebView } from 'react-native-webview';
 
 const ForecastScreen = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Forecast Screen</Text>
+      <WebView 
+        source={{ uri: 'https://battaglia.ddns.net/twc/' }} 
+        style={{ flex: 1 }} 
+      />
     </View>
   );
 };
@@ -12,11 +16,8 @@ const ForecastScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  text: {
-    fontSize: 24,
+    paddingTop: 50,
+    backgroundColor: '#282828',
   },
 });
 

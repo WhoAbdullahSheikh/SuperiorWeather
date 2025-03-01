@@ -1,10 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { WebView } from 'react-native-webview';
 
 const AlertsScreen = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Alerts Screen</Text>
+      <WebView 
+        source={{ uri: 'https://www.pivotalweather.com/maps.php?data_type=forecasts&r=us_ne&p=nwshaz&ds=hazards' }} 
+        style={{ flex: 1 }} 
+      />
     </View>
   );
 };
@@ -12,11 +16,8 @@ const AlertsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  text: {
-    fontSize: 24,
+    paddingTop: 50,
+    backgroundColor: '#282828',
   },
 });
 

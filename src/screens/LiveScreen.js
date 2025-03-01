@@ -1,10 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { WebView } from 'react-native-webview';
 
-const LiveScreen = () => {
+const RadarScreen = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Live Screen</Text>
+      <WebView 
+        source={{ uri: 'https://Twitch.tv/superiorweather' }} 
+        style={{ flex: 1 }} 
+      />
     </View>
   );
 };
@@ -12,12 +16,9 @@ const LiveScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  text: {
-    fontSize: 24,
+    paddingTop: 50,
+    backgroundColor: '#282828',
   },
 });
 
-export default LiveScreen;
+export default RadarScreen;
