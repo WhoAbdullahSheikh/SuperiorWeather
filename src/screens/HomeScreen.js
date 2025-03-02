@@ -1,13 +1,15 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
+  Alert,
   StyleSheet,
   ActivityIndicator,
   ScrollView,
   ImageBackground,
   TouchableOpacity,
   Image,
+  Linking,
 } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import axios from 'axios';
@@ -45,11 +47,11 @@ const HomeScreen = () => {
     configurePushNotifications();
     Geolocation.getCurrentPosition(
       async position => {
-        const {latitude, longitude} = position.coords;
+        const { latitude, longitude } = position.coords;
         const roundedLatitude = latitude.toFixed(6);
         const roundedLongitude = longitude.toFixed(6);
 
-        setLocation({latitude: roundedLatitude, longitude: roundedLongitude});
+        setLocation({ latitude: roundedLatitude, longitude: roundedLongitude });
         await getWeatherData(roundedLatitude, roundedLongitude);
         await reverseGeocode(roundedLatitude, roundedLongitude);
       },
@@ -57,7 +59,7 @@ const HomeScreen = () => {
         console.log(error);
         setLoading(false);
       },
-      {enableHighAccuracy: true, timeout: 15000},
+      { enableHighAccuracy: true, timeout: 15000 },
     );
     _setBackgroundImage();
   }, []);
@@ -140,6 +142,13 @@ const HomeScreen = () => {
     setExpanded(prevState => !prevState);
   };
 
+  const openSettingsWithInstructions = () => {
+    Linking.openSettings()
+      .catch(() => console.log('Cannot open settings'));
+
+  };
+  
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -155,10 +164,10 @@ const HomeScreen = () => {
         <ScrollView style={styles.container}>
           <SocialMediaSection />
           <View style={styles.currentWeatherContainer}>
-            <Text style={[styles.cityText, {color: textColor}]}>
+            <Text style={[styles.cityText, { color: textColor }]}>
               <View style={styles.cityContainer}>
                 {city ? (
-                  <Text style={[styles.cityText, {color: textColor}]}>
+                  <Text style={[styles.cityText, { color: textColor }]}>
                     {city}
                   </Text>
                 ) : (
@@ -331,7 +340,63 @@ const HomeScreen = () => {
   } else {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Unable to fetch weather data.</Text>
+        <Text style={styles.errorText}>
+          To use the SuperiorWeather App, please turn on your location services.
+        </Text>
+        <Text style={styles.errorInstructionText}>
+          Here's how you can enable location services:
+        </Text>
+        <Icon2 name="settings" size={30} color="#4A90E2" />
+        <Text style={styles.errorInstructionText}>
+          1. Press the <Text style={styles.bold}>Go to Settings</Text> button.
+        </Text>
+        <Icon name="location-arrow" size={30} color="#4A90E2" />
+        <Text style={styles.errorInstructionText}>
+          2. Click on <Text style={styles.bold}>Locations</Text> button toggle is turned on.
+        </Text>
+        <Text style={styles.errorInstructionText}>
+          2. Make sure location should be on <Text style={styles.bold}>While Using the App</Text> settings.
+        </Text>
+
+        <Image
+          source={require('../../assets/images/AppIcon.png')} // Your app's logo
+          style={styles.appLogo}
+        />
+        <Text style={styles.errorInstructionText}>
+          4. If not, then select it and press <Text style={styles.bold}>Retry</Text> button on <Text style={styles.bold}>SuperiorWeather</Text> App.
+        </Text>
+        <View style={styles.buttonsContainer}>
+        <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={openSettingsWithInstructions}>
+            <Text style={styles.retryText}>Go to Settings</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setLoading(true);
+              Geolocation.getCurrentPosition(
+                async position => {
+                  const {latitude, longitude} = position.coords;
+                  const roundedLatitude = latitude.toFixed(6);
+                  const roundedLongitude = longitude.toFixed(6);
+                  setLocation({
+                    latitude: roundedLatitude,
+                    longitude: roundedLongitude,
+                  });
+                  await getWeatherData(roundedLatitude, roundedLongitude);
+                },
+                error => {
+                  console.log(error);
+                  setLoading(false);
+                },
+                { enableHighAccuracy: true, timeout: 7000 },
+              );
+            }}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+          
+        </View>
       </View>
     );
   }
@@ -573,11 +638,63 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F5F5F5',
+    padding: 20,
   },
   errorText: {
-    fontSize: 18,
+    fontSize: 22,
     color: '#FF0000',
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
     fontFamily: 'Raleway-Regular',
+  },
+  errorInstructionText: {
+    fontSize: 20,
+    color: '#333',
+    textAlign: 'center',
+    marginVertical: 5,
+    fontFamily: 'Raleway-Regular',
+  },
+  retryButton: {
+    backgroundColor: '#4A90E2',
+    borderRadius: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    width: '40%',
+    marginLeft: 5,
+  },
+  settingsButton: {
+    backgroundColor: '#FF6347',
+    borderRadius: 5,
+    marginRight: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    width: '40%',
+    marginVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  buttonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginHorizontal: 20,
+    marginTop: 20,
+  },
+  bold: {fontWeight: 'bold'},
+
+  appLogo: {
+    width: 50,
+    height: 40,
   },
 });
 
