@@ -17,7 +17,11 @@ import Icon2 from 'react-native-vector-icons/Feather';
 import Video from 'react-native-video';
 import SocialMediaSection from '../navigation/SocialMediaSection';
 import WebView from 'react-native-webview';
-
+import {
+  scheduleWeatherNotification,
+  configurePushNotifications,
+} from '../services/NotificationService';
+import BackgroundTimer from 'react-native-background-timer';
 
 const HomeScreen = () => {
   const [location, setLocation] = useState(null);
@@ -38,6 +42,7 @@ const HomeScreen = () => {
   };
 
   useEffect(() => {
+    configurePushNotifications();
     Geolocation.getCurrentPosition(
       async position => {
         const {latitude, longitude} = position.coords;
@@ -56,6 +61,28 @@ const HomeScreen = () => {
     );
     _setBackgroundImage();
   }, []);
+
+  const scheduleDailyTask = () => {
+    console.log('Scheduling daily task...');
+    BackgroundTimer.stopBackgroundTimer();
+
+    BackgroundTimer.runBackgroundTimer(() => {
+      console.log('Running background task...');
+      if (location) {
+        getWeatherData(location.latitude, location.longitude);
+      }
+    }, 24 * 60 * 60 * 1000);
+  };
+
+  useEffect(() => {
+    if (location) {
+      scheduleDailyTask();
+    }
+
+    return () => {
+      BackgroundTimer.stopBackgroundTimer();
+    };
+  }, [location]);
 
   const reverseGeocode = async (lat, lng) => {
     try {
@@ -95,6 +122,10 @@ const HomeScreen = () => {
       if (response.data && response.data.currentConditions) {
         setWeather(response.data);
         setLoading(false);
+
+        if (!weather) {
+          scheduleWeatherNotification(response.data.currentConditions);
+        }
       } else {
         console.log('Error: Data structure is not as expected.');
         setLoading(false);
@@ -124,7 +155,6 @@ const HomeScreen = () => {
         <ScrollView style={styles.container}>
           <SocialMediaSection />
           <View style={styles.currentWeatherContainer}>
-            {}
             <Text style={[styles.cityText, {color: textColor}]}>
               <View style={styles.cityContainer}>
                 {city ? (
@@ -157,7 +187,7 @@ const HomeScreen = () => {
             <Text style={styles.cardContent}>Long: {location.longitude}</Text>
             <Text style={styles.countryContent}>
               Country: {countryName || 'Loading...'}
-              </Text>
+            </Text>
             <Text style={styles.cardContent}>
               Weather: {weather.currentConditions.conditions}
             </Text>
@@ -436,7 +466,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     fontFamily: 'Raleway-Regular',
-
   },
   forecastDetails: {
     flexDirection: 'row',
@@ -449,7 +478,6 @@ const styles = StyleSheet.create({
   forecastTemp: {
     fontSize: 18,
     color: '#fff',
-    
   },
   forecastCondition: {
     fontSize: 22,

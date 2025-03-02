@@ -17,10 +17,10 @@ const MainApp = () => {
       initialRouteName="Home"
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: 'white',  // Active icon color
-        tabBarInactiveTintColor: 'grey', // Inactive icon color
+        tabBarActiveTintColor: 'white',
+        tabBarInactiveTintColor: 'grey',
         tabBarStyle: {
-          backgroundColor: '#282828',  // Background color of the tab bar
+          backgroundColor: '#282828',
         },
       }}>
       <Tab.Screen
