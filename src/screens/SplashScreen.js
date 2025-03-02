@@ -29,7 +29,7 @@ const SplashScreen = () => {
 
       setTimeout(() => {
         navigation.replace('MainApp');
-      }, 3000);
+      }, 2000);
     });
   };
 

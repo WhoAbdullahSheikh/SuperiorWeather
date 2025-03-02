@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import Icon2 from 'react-native-vector-icons/Feather';
 import Video from 'react-native-video';
 import SocialMediaSection from '../navigation/SocialMediaSection';
 import WebView from 'react-native-webview';
+import {RefreshControl} from 'react-native';
+import RNRestart from 'react-native-restart';
 import {
   scheduleWeatherNotification,
   configurePushNotifications,
@@ -34,6 +36,7 @@ const HomeScreen = () => {
   const [expanded, setExpanded] = useState(false);
   const [backgroundImage, setBackgroundImage] = useState(null);
   const [textColor, setTextColor] = useState('#fff');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const onBuffer = buffer => {
     console.log('Buffering...', buffer);
@@ -42,16 +45,23 @@ const HomeScreen = () => {
   const onError = error => {
     console.error('Video Error:', error);
   };
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    if (location) {
+      await getWeatherData(location.latitude, location.longitude);
+    }
+    setIsRefreshing(false);
+  };
 
   useEffect(() => {
     configurePushNotifications();
     Geolocation.getCurrentPosition(
       async position => {
-        const { latitude, longitude } = position.coords;
+        const {latitude, longitude} = position.coords;
         const roundedLatitude = latitude.toFixed(6);
         const roundedLongitude = longitude.toFixed(6);
 
-        setLocation({ latitude: roundedLatitude, longitude: roundedLongitude });
+        setLocation({latitude: roundedLatitude, longitude: roundedLongitude});
         await getWeatherData(roundedLatitude, roundedLongitude);
         await reverseGeocode(roundedLatitude, roundedLongitude);
       },
@@ -59,7 +69,7 @@ const HomeScreen = () => {
         console.log(error);
         setLoading(false);
       },
-      { enableHighAccuracy: true, timeout: 15000 },
+      {enableHighAccuracy: true, timeout: 2000},
     );
     _setBackgroundImage();
   }, []);
@@ -143,11 +153,8 @@ const HomeScreen = () => {
   };
 
   const openSettingsWithInstructions = () => {
-    Linking.openSettings()
-      .catch(() => console.log('Cannot open settings'));
-
+    Linking.openSettings().catch(() => console.log('Cannot open settings'));
   };
-  
 
   if (loading) {
     return (
@@ -161,13 +168,17 @@ const HomeScreen = () => {
   if (weather && weather.currentConditions) {
     return (
       <ImageBackground source={backgroundImage} style={styles.backgroundImage}>
-        <ScrollView style={styles.container}>
+        <ScrollView
+          style={styles.container}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+          }>
           <SocialMediaSection />
           <View style={styles.currentWeatherContainer}>
-            <Text style={[styles.cityText, { color: textColor }]}>
+            <Text style={[styles.cityText, {color: textColor}]}>
               <View style={styles.cityContainer}>
                 {city ? (
-                  <Text style={[styles.cityText, { color: textColor }]}>
+                  <Text style={[styles.cityText, {color: textColor}]}>
                     {city}
                   </Text>
                 ) : (
@@ -352,10 +363,12 @@ const HomeScreen = () => {
         </Text>
         <Icon name="location-arrow" size={30} color="#4A90E2" />
         <Text style={styles.errorInstructionText}>
-          2. Click on <Text style={styles.bold}>Locations</Text> button toggle is turned on.
+          2. Click on <Text style={styles.bold}>Locations</Text> button toggle
+          is turned on.
         </Text>
         <Text style={styles.errorInstructionText}>
-          2. Make sure location should be on <Text style={styles.bold}>While Using the App</Text> settings.
+          2. Make sure location should be on{' '}
+          <Text style={styles.bold}>While Using the App</Text> settings.
         </Text>
 
         <Image
@@ -363,10 +376,12 @@ const HomeScreen = () => {
           style={styles.appLogo}
         />
         <Text style={styles.errorInstructionText}>
-          4. If not, then select it and press <Text style={styles.bold}>Retry</Text> button on <Text style={styles.bold}>SuperiorWeather</Text> App.
+          4. If not, then select it and press{' '}
+          <Text style={styles.bold}>Retry</Text> button on{' '}
+          <Text style={styles.bold}>SuperiorWeather</Text> App.
         </Text>
         <View style={styles.buttonsContainer}>
-        <TouchableOpacity
+          <TouchableOpacity
             style={styles.settingsButton}
             onPress={openSettingsWithInstructions}>
             <Text style={styles.retryText}>Go to Settings</Text>
@@ -390,12 +405,13 @@ const HomeScreen = () => {
                   console.log(error);
                   setLoading(false);
                 },
-                { enableHighAccuracy: true, timeout: 7000 },
+                {enableHighAccuracy: true, timeout: 2000},
               );
+              // Restart the app after the retry attempt
+              RNRestart.Restart(); // Restart the app after retry
             }}>
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
-          
         </View>
       </View>
     );
