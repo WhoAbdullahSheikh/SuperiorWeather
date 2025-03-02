@@ -16,14 +16,18 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import Icon2 from 'react-native-vector-icons/Feather';
 import Video from 'react-native-video';
 import SocialMediaSection from '../navigation/SocialMediaSection';
+import WebView from 'react-native-webview';
+
 
 const HomeScreen = () => {
   const [location, setLocation] = useState(null);
   const [weather, setWeather] = useState(null);
+  const [city, setCity] = useState('');
+  const [countryName, setCountryName] = useState('');
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [backgroundImage, setBackgroundImage] = useState(null);
-  const [textColor, setTextColor] = useState('#000');
+  const [textColor, setTextColor] = useState('#fff');
 
   const onBuffer = buffer => {
     console.log('Buffering...', buffer);
@@ -42,6 +46,7 @@ const HomeScreen = () => {
 
         setLocation({latitude: roundedLatitude, longitude: roundedLongitude});
         await getWeatherData(roundedLatitude, roundedLongitude);
+        await reverseGeocode(roundedLatitude, roundedLongitude);
       },
       error => {
         console.log(error);
@@ -52,12 +57,29 @@ const HomeScreen = () => {
     _setBackgroundImage();
   }, []);
 
+  const reverseGeocode = async (lat, lng) => {
+    try {
+      const response = await axios.get(
+        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
+      );
+
+      if (response.data && response.data.city) {
+        setCity(response.data.city);
+      }
+      if (response.data && response.data.countryName) {
+        setCountryName(response.data.countryName);
+      }
+    } catch (error) {
+      console.error('Reverse geocode error:', error);
+    }
+  };
+
   const _setBackgroundImage = () => {
     const currentHour = new Date().getHours();
 
     if (currentHour >= 5 && currentHour < 18) {
       setBackgroundImage(require('../../assets/images/day.jpg'));
-      setTextColor('#000');
+      setTextColor('#fff');
     } else {
       setBackgroundImage(require('../../assets/images/night.jpg'));
       setTextColor('#fff');
@@ -100,8 +122,20 @@ const HomeScreen = () => {
     return (
       <ImageBackground source={backgroundImage} style={styles.backgroundImage}>
         <ScrollView style={styles.container}>
-        <SocialMediaSection />
+          <SocialMediaSection />
           <View style={styles.currentWeatherContainer}>
+            {}
+            <Text style={[styles.cityText, {color: textColor}]}>
+              <View style={styles.cityContainer}>
+                {city ? (
+                  <Text style={[styles.cityText, {color: textColor}]}>
+                    {city}
+                  </Text>
+                ) : (
+                  <ActivityIndicator size="small" color={textColor} />
+                )}
+              </View>
+            </Text>
             <Text style={styles.temperatureText}>
               {Math.round(weather.currentConditions.temp)}°F
             </Text>
@@ -119,9 +153,11 @@ const HomeScreen = () => {
             </Text>
           </View>
           <View style={styles.currentWeatherCard}>
-            <Text style={styles.cardTitle}>Current Weather Details</Text>
             <Text style={styles.cardContent}>Lat: {location.latitude}</Text>
             <Text style={styles.cardContent}>Long: {location.longitude}</Text>
+            <Text style={styles.countryContent}>
+              Country: {countryName || 'Loading...'}
+              </Text>
             <Text style={styles.cardContent}>
               Weather: {weather.currentConditions.conditions}
             </Text>
@@ -145,7 +181,9 @@ const HomeScreen = () => {
                     color="white"
                     style={styles.hourlyIcon}
                   />
-                  <Text style={styles.hourlyTemp}>{Math.round(hour.temp)}°F</Text>
+                  <Text style={styles.hourlyTemp}>
+                    {Math.round(hour.temp)}°F
+                  </Text>
                   <Text style={styles.hourlyCondition}>{hour.conditions}</Text>
                 </View>
               );
@@ -180,7 +218,8 @@ const HomeScreen = () => {
                       style={styles.forecastIcon}
                     />
                     <Text style={styles.forecastTemp}>
-                      Day: {Math.round(day.tempmax)}°F | Night: {Math.round(day.tempmin)}°F
+                      Day: {Math.round(day.tempmax)}°F | Night:{' '}
+                      {Math.round(day.tempmin)}°F
                     </Text>
                   </View>
                   <Text style={styles.forecastCondition}>{day.conditions}</Text>
@@ -200,7 +239,9 @@ const HomeScreen = () => {
                             color="white"
                             style={styles.hourlyIcon}
                           />
-                          <Text style={styles.hourlyTemp}>{Math.round(hour.temp)}°F</Text>
+                          <Text style={styles.hourlyTemp}>
+                            {Math.round(hour.temp)}°F
+                          </Text>
                           <Text style={styles.hourlyCondition}>
                             {hour.conditions}
                           </Text>
@@ -225,7 +266,16 @@ const HomeScreen = () => {
               autoPlay={true}
             />
           </View>
-
+          <View style={styles.webViewContainer}>
+            <WebView
+              source={{
+                uri: 'https://player.twitch.tv/?channel=superiorweather&parent=com.example.superior_weather',
+              }}
+              style={styles.webView}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+            />
+          </View>
           <View style={styles.videoContainer}>
             <Image
               source={require('../../assets/web_banner8.gif')}
@@ -289,7 +339,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 50,
   },
-
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -300,10 +349,18 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#4A90E2',
+    fontFamily: 'Raleway-Regular',
   },
   currentWeatherContainer: {
     alignItems: 'center',
     marginBottom: 24,
+  },
+  cityText: {
+    fontSize: 34,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+    fontFamily: 'Raleway-Regular',
   },
   currentWeatherCard: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -316,15 +373,21 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 3,
   },
-  cardTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+  cityContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardContent: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#fff',
+    marginVertical: 6,
+  },
+  countryContent: {
+    fontSize: 22,
+    color: '#fff',
+    fontWeight: 'bold',
     marginVertical: 4,
+    fontFamily: 'Raleway-Regular',
   },
   temperatureText: {
     fontSize: 48,
@@ -332,7 +395,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   feelsLikeText: {
-    fontSize: 18,
+    fontSize: 24,
     color: '#fff',
     marginTop: 10,
   },
@@ -343,13 +406,19 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: '#fff',
     fontWeight: 'bold',
+    fontFamily: 'Raleway-Regular',
   },
   sectionTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    marginLeft: 8,
+    borderRadius: 12,
+    padding: 10,
     color: '#fff',
     marginBottom: 16,
+    justifyContent: 'center',
+    textAlign: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    fontFamily: 'Raleway-Regular',
   },
   forecastCard: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -363,9 +432,11 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   forecastDate: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#fff',
+    fontFamily: 'Raleway-Regular',
+
   },
   forecastDetails: {
     flexDirection: 'row',
@@ -376,11 +447,12 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   forecastTemp: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#fff',
+    
   },
   forecastCondition: {
-    fontSize: 14,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#fff',
   },
@@ -398,9 +470,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-
   hourlyTime: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
   },
@@ -408,19 +479,19 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   hourlyTemp: {
-    fontSize: 14,
+    fontSize: 18,
     color: '#fff',
   },
   hourlyCondition: {
-    fontSize: 14,
+    fontSize: 18,
     color: '#fff',
     marginTop: 4,
     fontWeight: 'bold',
     textAlign: 'center',
     width: '100%',
     paddingHorizontal: 8,
+    fontFamily: 'Raleway-Regular',
   },
-
   toggleButton: {
     padding: 16,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -436,6 +507,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     flex: 1,
+    fontFamily: 'Raleway-Regular',
   },
   toggleIcon: {
     marginLeft: 10,
@@ -459,6 +531,15 @@ const styles = StyleSheet.create({
     height: 700,
     borderRadius: 10,
   },
+  webViewContainer: {
+    width: '100%',
+    height: 250,
+    marginBottom: 20,
+  },
+  webView: {
+    flex: 1,
+    borderRadius: 10,
+  },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -468,6 +549,7 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 18,
     color: '#FF0000',
+    fontFamily: 'Raleway-Regular',
   },
 });
 
