@@ -25,11 +25,10 @@ const scheduleWeatherNotification = weatherData => {
   PushNotification.cancelAllLocalNotifications();
   PushNotification.localNotificationSchedule({
     channelId: 'weather-alerts',
-    title: 'Hey buddy, Good Morning! 🌤️',
-    message: `Today's Update: 
-    Weather Condition: "${conditions}", 
-    Temperature: ${temp}° F`,
-    date: new Date(new Date().setHours(5, 59, 58)),
+    title: 'Good Morning from Superior Weather! 🌤️',
+    message: `Weather's Update:
+Likely ${temp}° F, Condition: "${conditions}"`,
+    date: new Date(new Date().setHours(5, 15, 30)),
     allowWhileIdle: true,
     repeatType: 'day',
   });

@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useCallback} from 'react';
 import {
   View,
   Text,
@@ -72,9 +72,9 @@ const HomeScreen = () => {
       {enableHighAccuracy: true, timeout: 2000},
     );
     _setBackgroundImage();
-  }, []);
+  }, [getWeatherData]);
 
-  const scheduleDailyTask = () => {
+  const scheduleDailyTask = useCallback(() => {
     console.log('Scheduling daily task...');
     BackgroundTimer.stopBackgroundTimer();
 
@@ -84,7 +84,7 @@ const HomeScreen = () => {
         getWeatherData(location.latitude, location.longitude);
       }
     }, 24 * 60 * 60 * 1000);
-  };
+  }, [location, getWeatherData]);
 
   useEffect(() => {
     if (location) {
@@ -94,7 +94,7 @@ const HomeScreen = () => {
     return () => {
       BackgroundTimer.stopBackgroundTimer();
     };
-  }, [location]);
+  }, [location, scheduleDailyTask]);
 
   const reverseGeocode = async (lat, lng) => {
     try {
@@ -125,9 +125,9 @@ const HomeScreen = () => {
     }
   };
 
-  const getWeatherData = async (latitude, longitude) => {
+  const getWeatherData = useCallback(async (latitude, longitude) => {
     try {
-      const API_KEY = 'UB5VAZNTAAW4QEGG7XAS34XQ6';
+      const API_KEY = '2B5JCJ8FL7P2SFDWTPQCVC7KU';
       const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${latitude},${longitude}?key=${API_KEY}`;
 
       const response = await axios.get(url);
@@ -146,7 +146,7 @@ const HomeScreen = () => {
       console.error('Error fetching weather data: ', error);
       setLoading(false);
     }
-  };
+  }, [weather]);
 
   const toggleExpand = () => {
     setExpanded(prevState => !prevState);
@@ -407,8 +407,7 @@ const HomeScreen = () => {
                 },
                 {enableHighAccuracy: true, timeout: 2000},
               );
-              // Restart the app after the retry attempt
-              RNRestart.Restart(); // Restart the app after retry
+              RNRestart.Restart();
             }}>
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>

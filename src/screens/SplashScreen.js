@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import NetInfo from '@react-native-community/netinfo';
@@ -10,9 +10,9 @@ const SplashScreen = () => {
 
   useEffect(() => {
     checkInternetConnectivity();
-  }, []);
+  }, [checkInternetConnectivity]);
 
-  const checkInternetConnectivity = () => {
+  const checkInternetConnectivity = useCallback(() => {
     NetInfo.fetch().then(state => {
       if (!state.isConnected) {
         setIsConnected(false);
@@ -31,7 +31,7 @@ const SplashScreen = () => {
         navigation.replace('MainApp');
       }, 2000);
     });
-  };
+  }, [navigation]);
 
   return (
     <View style={styles.container}>
