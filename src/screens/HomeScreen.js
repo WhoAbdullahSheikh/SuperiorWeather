@@ -125,28 +125,31 @@ const HomeScreen = () => {
     }
   };
 
-  const getWeatherData = useCallback(async (latitude, longitude) => {
-    try {
-      const API_KEY = '2B5JCJ8FL7P2SFDWTPQCVC7KU';
-      const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${latitude},${longitude}?key=${API_KEY}`;
+  const getWeatherData = useCallback(
+    async (latitude, longitude) => {
+      try {
+        const API_KEY = '2B5JCJ8FL7P2SFDWTPQCVC7KU';
+        const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${latitude},${longitude}?key=${API_KEY}`;
 
-      const response = await axios.get(url);
-      if (response.data && response.data.currentConditions) {
-        setWeather(response.data);
-        setLoading(false);
+        const response = await axios.get(url);
+        if (response.data && response.data.currentConditions) {
+          setWeather(response.data);
+          setLoading(false);
 
-        if (!weather) {
-          scheduleWeatherNotification(response.data.currentConditions);
+          if (!weather) {
+            scheduleWeatherNotification(response.data.currentConditions);
+          }
+        } else {
+          console.log('Error: Data structure is not as expected.');
+          setLoading(false);
         }
-      } else {
-        console.log('Error: Data structure is not as expected.');
+      } catch (error) {
+        console.error('Error fetching weather data: ', error);
         setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching weather data: ', error);
-      setLoading(false);
-    }
-  }, [weather]);
+    },
+    [weather],
+  );
 
   const toggleExpand = () => {
     setExpanded(prevState => !prevState);
@@ -304,7 +307,13 @@ const HomeScreen = () => {
             </View>
           )}
 
-          <View style={styles.videoContainer}>
+          <TouchableOpacity
+            onPress={() =>
+              Linking.openURL(
+                'mailto:superiorweather@gmail.com?subject=Proposal for advertisement&body=Hello Superior Weather Team,',
+              )
+            }
+            style={styles.videoContainer}>
             <Video
               source={require('../../assets/banner_video.mp4')}
               onBuffer={onBuffer}
@@ -315,7 +324,7 @@ const HomeScreen = () => {
               resizeMode="cover"
               autoPlay={true}
             />
-          </View>
+          </TouchableOpacity>
           <View style={styles.webViewContainer}>
             <WebView
               source={{
@@ -333,7 +342,9 @@ const HomeScreen = () => {
             />
           </View>
 
-          <View style={styles.videoContainer}>
+          <TouchableOpacity
+            onPress={() => Linking.openURL('https://adamontheair.com')}
+            style={styles.videoContainer}>
             <Video
               source={require('../../assets/banner5.mp4')}
               onBuffer={onBuffer}
@@ -344,7 +355,7 @@ const HomeScreen = () => {
               resizeMode="cover"
               autoPlay={true}
             />
-          </View>
+          </TouchableOpacity>
         </ScrollView>
       </ImageBackground>
     );

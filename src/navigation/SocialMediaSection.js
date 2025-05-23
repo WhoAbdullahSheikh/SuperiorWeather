@@ -21,12 +21,18 @@ const SocialMediaSection = () => {
 
   return (
     <View style={styles.socialMediaContainer}>
-      <View style={styles.logoContainer} pointerEvents="none">
+      {/* Make the logo container clickable */}
+      <TouchableOpacity 
+        style={styles.logoContainer}
+        onPress={() => handlePress('https://Superiorweather.com')} // Replace with your desired URL
+        activeOpacity={0.7}
+      >
         <Image
           source={require('../../assets/images/splash_logo.png')}
           style={styles.logo}
         />
-      </View>
+      </TouchableOpacity>
+      
       <View style={styles.divider}></View>
 
       <View style={styles.socialIconsContainer}>
@@ -76,7 +82,7 @@ const styles = StyleSheet.create({
     top: -176,
     left: -76,
     zIndex: 10,
-    pointerEvents: 'none',
+    // Remove pointerEvents: 'none' since we want it to be clickable
   },
   logo: {
     width: 360,
