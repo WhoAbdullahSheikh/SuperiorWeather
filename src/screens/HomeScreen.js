@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useCallback} from 'react';
+import React, {useEffect, useState, useCallback, useRef} from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import {
   scheduleWeatherNotification,
   configurePushNotifications,
 } from '../services/NotificationService';
+import {triggerWeatherAlerts} from '../services/NotificationService';
 import BackgroundTimer from 'react-native-background-timer';
 
 const HomeScreen = () => {
@@ -136,9 +137,18 @@ const HomeScreen = () => {
           setWeather(response.data);
           setLoading(false);
 
-          if (!weather) {
-            scheduleWeatherNotification(response.data.currentConditions);
-          }
+          const weatherInfo = {
+            temperature: response.data.currentConditions.temp,
+            feelsLike: response.data.currentConditions.feelslike,
+            conditions: response.data.currentConditions.conditions,
+            precipProbability: response.data.currentConditions.precipprob,
+            windSpeed: response.data.currentConditions.windspeed,
+            humidity: response.data.currentConditions.humidity,
+            visibility: response.data.currentConditions.visibility,
+            uvIndex: response.data.currentConditions.uvindex,
+          };
+
+          triggerWeatherAlerts(weatherInfo);
         } else {
           console.log('Error: Data structure is not as expected.');
           setLoading(false);
@@ -148,7 +158,7 @@ const HomeScreen = () => {
         setLoading(false);
       }
     },
-    [weather],
+    [],
   );
 
   const toggleExpand = () => {
