@@ -21,10 +21,11 @@ const SocialMediaSection = () => {
 
   return (
     <View style={styles.socialMediaContainer}>
-      {/* Make the logo container clickable */}
-      <TouchableOpacity 
-        style={styles.logoContainer}
-        onPress={() => handlePress('https://Superiorweather.com')} // Replace with your desired URL
+      <View style={styles.logoAndSocialContainer}>
+        {}
+        <View style={styles.logoContainer}>
+    <TouchableOpacity 
+            onPress={() => handlePress('https://Superiorweather.com')}
         activeOpacity={0.7}
       >
         <Image
@@ -32,6 +33,7 @@ const SocialMediaSection = () => {
           style={styles.logo}
         />
       </TouchableOpacity>
+        </View>
       
       <View style={styles.divider}></View>
 
@@ -72,32 +74,34 @@ const SocialMediaSection = () => {
         </TouchableOpacity>
       </View>
       <View style={styles.divider2}></View>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  logoContainer: {
-    position: 'absolute',
-    top: -176,
-    left: -76,
-    zIndex: 10,
-    // Remove pointerEvents: 'none' since we want it to be clickable
-  },
-  logo: {
-    width: 360,
-    height: 360,
-    resizeMode: 'contain',
-  },
   socialMediaContainer: {
     marginVertical: 12,
     paddingHorizontal: 10,
+  },
+  logoAndSocialContainer: {
+    alignItems: 'center',
+  },
+  logoContainer: {
+    marginBottom: 20,
+  },
+  logo: {
+    width: 500,
+    height: 200,
+    resizeMode: 'contain',
+    right: 110,
+    marginBottom: -80,
+    marginTop: -100,
   },
   socialIconsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 10,
   },
   followText: {
     fontSize: 22,
@@ -106,40 +110,20 @@ const styles = StyleSheet.create({
     color: 'white',
     fontFamily: 'Raleway-Regular',
   },
-  iconsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-  },
   socialIcon: {
     marginHorizontal: 8,
   },
   divider: {
-    marginTop: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: '100%',
     borderBottomWidth: 2,
     borderBottomColor: '#fff',
-    marginBottom: 0,
-    justifyContent: 'center',
-    position: 'relative',
+    marginBottom: 15,
   },
   divider2: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: '100%',
     borderBottomWidth: 2,
     borderBottomColor: '#fff',
-    marginBottom: 0,
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  dividerText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    paddingHorizontal: 10,
-    position: 'absolute',
-    top: -12,
+    marginTop: 15,
   },
 });
 

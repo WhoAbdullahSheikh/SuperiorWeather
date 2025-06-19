@@ -10,12 +10,15 @@ import {
   TouchableOpacity,
   Image,
   Linking,
+  Animated,
 } from 'react-native';
+import Config from 'react-native-config';
 import Geolocation from '@react-native-community/geolocation';
 import axios from 'axios';
 import moment from 'moment';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Icon2 from 'react-native-vector-icons/Feather';
+import Icon3 from 'react-native-vector-icons/Ionicons';
 import Video from 'react-native-video';
 import SocialMediaSection from '../navigation/SocialMediaSection';
 import WebView from 'react-native-webview';
@@ -28,6 +31,10 @@ import {
 import {triggerWeatherAlerts} from '../services/NotificationService';
 import BackgroundTimer from 'react-native-background-timer';
 
+const API_KEY = Config.WEATHER_API_KEY;
+
+console.log('Loaded API KEY:', API_KEY);
+
 const HomeScreen = () => {
   const [location, setLocation] = useState(null);
   const [weather, setWeather] = useState(null);
@@ -38,6 +45,27 @@ const HomeScreen = () => {
   const [backgroundImage, setBackgroundImage] = useState(null);
   const [textColor, setTextColor] = useState('#fff');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdateHour, setLastUpdateHour] = useState(new Date().getHours());
+  const [forecastLoading, setForecastLoading] = useState(false);
+
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+  const forecastOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (loading) {
+      Animated.timing(contentOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(contentOpacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [loading, contentOpacity]);
 
   const onBuffer = buffer => {
     console.log('Buffering...', buffer);
@@ -46,6 +74,7 @@ const HomeScreen = () => {
   const onError = error => {
     console.error('Video Error:', error);
   };
+
   const onRefresh = async () => {
     setIsRefreshing(true);
     if (location) {
@@ -53,6 +82,40 @@ const HomeScreen = () => {
     }
     setIsRefreshing(false);
   };
+
+  const checkForNewHour = useCallback(() => {
+    const currentHour = new Date().getHours();
+    if (currentHour !== lastUpdateHour) {
+      setLastUpdateHour(currentHour);
+      if (location) {
+        getWeatherData(location.latitude, location.longitude);
+      }
+      _setBackgroundImage();
+    }
+  }, [lastUpdateHour, location, getWeatherData]);
+
+  const getCurrentHourWeather = () => {
+    if (!weather || !weather.days || weather.days.length === 0) return null;
+    
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentDate = moment(now).format('YYYY-MM-DD');
+    
+    const today = weather.days.find(day => day.datetime === currentDate);
+    if (!today || !today.hours) return null;
+    
+    const currentHourData = today.hours.find(hour => {
+      const hourNumber = parseInt(hour.datetime.split(':')[0]);
+      return hourNumber === currentHour;
+    });
+    
+    return currentHourData || weather.currentConditions;
+  };
+
+  useEffect(() => {
+    const intervalId = setInterval(checkForNewHour, 60000); // Check every minute
+    return () => clearInterval(intervalId);
+  }, [checkForNewHour]);
 
   useEffect(() => {
     configurePushNotifications();
@@ -65,6 +128,7 @@ const HomeScreen = () => {
         setLocation({latitude: roundedLatitude, longitude: roundedLongitude});
         await getWeatherData(roundedLatitude, roundedLongitude);
         await reverseGeocode(roundedLatitude, roundedLongitude);
+        setLastUpdateHour(new Date().getHours());
       },
       error => {
         console.log(error);
@@ -76,11 +140,9 @@ const HomeScreen = () => {
   }, [getWeatherData]);
 
   const scheduleDailyTask = useCallback(() => {
-    console.log('Scheduling daily task...');
     BackgroundTimer.stopBackgroundTimer();
 
     BackgroundTimer.runBackgroundTimer(() => {
-      console.log('Running background task...');
       if (location) {
         getWeatherData(location.latitude, location.longitude);
       }
@@ -118,56 +180,141 @@ const HomeScreen = () => {
     const currentHour = new Date().getHours();
 
     if (currentHour >= 5 && currentHour < 18) {
-      setBackgroundImage(require('../../assets/images/day.jpg'));
+      setBackgroundImage(require('../../assets/images/day.png'));
       setTextColor('#fff');
     } else {
-      setBackgroundImage(require('../../assets/images/night.jpg'));
+      setBackgroundImage(require('../../assets/images/night2.png'));
       setTextColor('#fff');
     }
   };
 
-  const getWeatherData = useCallback(
-    async (latitude, longitude) => {
-      try {
-        const API_KEY = '2B5JCJ8FL7P2SFDWTPQCVC7KU';
-        const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${latitude},${longitude}?key=${API_KEY}`;
+  const getWeatherData = useCallback(async (latitude, longitude) => {
+    try {
+      setLoading(true);
+      const response = await axios.get(
+        `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${latitude},${longitude}?key=${API_KEY}`,
+      );
+      
+      if (response.data && response.data.currentConditions) {
+        console.log('Full weather forecast:', response.data);
+        setWeather(response.data);
+        setLoading(false);
 
-        const response = await axios.get(url);
-        if (response.data && response.data.currentConditions) {
-          setWeather(response.data);
-          setLoading(false);
+        const weatherInfo = {
+          temperature: response.data.currentConditions.temp,
+          feelsLike: response.data.currentConditions.feelslike,
+          conditions: response.data.currentConditions.conditions,
+          precipProbability: response.data.currentConditions.precipprob,
+          windSpeed: response.data.currentConditions.windspeed,
+          humidity: response.data.currentConditions.humidity,
+          visibility: response.data.currentConditions.visibility,
+          uvIndex: response.data.currentConditions.uvindex,
+        };
 
-          const weatherInfo = {
-            temperature: response.data.currentConditions.temp,
-            feelsLike: response.data.currentConditions.feelslike,
-            conditions: response.data.currentConditions.conditions,
-            precipProbability: response.data.currentConditions.precipprob,
-            windSpeed: response.data.currentConditions.windspeed,
-            humidity: response.data.currentConditions.humidity,
-            visibility: response.data.currentConditions.visibility,
-            uvIndex: response.data.currentConditions.uvindex,
-          };
-
-          triggerWeatherAlerts(weatherInfo);
-        } else {
-          console.log('Error: Data structure is not as expected.');
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error fetching weather data: ', error);
+        triggerWeatherAlerts(weatherInfo);
+      } else {
+        console.log('Error: Data structure is not as expected.');
         setLoading(false);
       }
-    },
-    [],
-  );
+    } catch (error) {
+      console.error('Error fetching weather data: ', error);
+      setLoading(false);
+    }
+  }, []);
 
-  const toggleExpand = () => {
-    setExpanded(prevState => !prevState);
+  const handleExpandForecast = () => {
+    if (!expanded) {
+      setForecastLoading(true);
+      setExpanded(true);
+      forecastOpacity.setValue(0);
+      setTimeout(() => {
+        setForecastLoading(false);
+        Animated.timing(forecastOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }).start();
+      }, 1000);
+    } else {
+      setExpanded(false);
+      forecastOpacity.setValue(0);
+    }
   };
 
   const openSettingsWithInstructions = () => {
     Linking.openSettings().catch(() => console.log('Cannot open settings'));
   };
+
+  const getWeatherIcon = condition => {
+    if (!condition) return {name: 'cloud-outline', color: '#fff'};
+
+    const conditionLower = condition.toLowerCase();
+    const hour = new Date().getHours();
+    const isNight = hour >= 18 || hour < 6;
+
+    if (conditionLower.includes('clear')) {
+      if (isNight) {
+        return {name: 'moon', color: '#F4EDCC'};
+      }
+      return {name: 'sunny', color: '#FFD700'};
+    }
+    if (conditionLower.includes('cloud'))
+      return {name: 'cloudy', color: '#fff'};
+    if (conditionLower.includes('rain')) return {name: 'rainy', color: '#fff'};
+    if (conditionLower.includes('snow')) return {name: 'snow', color: '#fff'};
+    if (conditionLower.includes('thunder') || conditionLower.includes('storm'))
+      return {name: 'thunderstorm', color: '#fff'};
+    if (conditionLower.includes('drizzle'))
+      return {name: 'water', color: '#fff'};
+    if (
+      conditionLower.includes('fog') ||
+      conditionLower.includes('mist') ||
+      conditionLower.includes('haze')
+    )
+      return {name: 'cloudy-night', color: '#fff'};
+    if (conditionLower.includes('wind')) return {name: 'flag', color: '#fff'};
+    if (conditionLower.includes('sun') || conditionLower.includes('sunny'))
+      return {name: 'sunny-outline', color: '#FFD700'};
+    if (conditionLower.includes('partly'))
+      return {name: 'partly-sunny', color: '#FFD700'};
+    return {name: 'cloud-outline', color: '#fff'};
+  };
+
+  // Custom hook for staggered fade-in
+  const useStaggeredFadeIn = (count, trigger) => {
+    const animatedValues = useRef(Array.from({ length: count }, () => new Animated.Value(0))).current;
+    useEffect(() => {
+      if (trigger) {
+        Animated.stagger(120, animatedValues.map(anim =>
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          })
+        )).start();
+      } else {
+        animatedValues.forEach(anim => anim.setValue(0));
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [trigger, count]);
+    return animatedValues;
+  };
+
+  const forecastCardCount = 14;
+  const forecastCardAnimated = useStaggeredFadeIn(forecastCardCount, expanded && !forecastLoading);
+
+  const hourlyScrollRef = useRef(null);
+  const hourlyScrolled = useRef(false);
+  const now = new Date();
+  const currentHour = now.getHours();
+  let currentHourIndex = 0;
+  if (weather && weather.days && weather.days.length > 0) {
+    currentHourIndex = weather.days[0].hours.findIndex(hour => {
+      const hourNumber = parseInt(hour.datetime.split(':')[0]);
+      return hourNumber === currentHour;
+    });
+    if (currentHourIndex === -1) currentHourIndex = 0;
+  }
 
   if (loading) {
     return (
@@ -179,194 +326,240 @@ const HomeScreen = () => {
   }
 
   if (weather && weather.currentConditions) {
+    const currentHourWeather = getCurrentHourWeather();
+    const displayWeather = currentHourWeather || weather.currentConditions;
+
     return (
       <ImageBackground source={backgroundImage} style={styles.backgroundImage}>
-        <ScrollView
-          style={styles.container}
-          refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-          }>
-          <SocialMediaSection />
-          <View style={styles.currentWeatherContainer}>
-            <Text style={[styles.cityText, {color: textColor}]}>
-              <View style={styles.cityContainer}>
-                {city ? (
-                  <Text style={[styles.cityText, {color: textColor}]}>
-                    {city}
-                  </Text>
+        <View style={styles.overlay} />
+        {loading && (
+          <View style={styles.loaderOverlay}>
+            <ActivityIndicator size="large" color="#4A90E2" />
+          </View>
+        )}
+        <Animated.View style={[styles.animatedContent, {opacity: contentOpacity}]}>
+          <ScrollView
+            style={styles.container}
+            refreshControl={
+              <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+            }>
+            <SocialMediaSection />
+            <View style={styles.currentWeatherContainer}>
+              <Text style={[styles.cityText, {color: textColor}]}>
+                <View style={styles.cityContainer}>
+                  {city ? (
+                    <Text style={[styles.cityText, {color: textColor}]}>
+                      {city}
+                    </Text>
+                  ) : (
+                    <ActivityIndicator size="small" color={textColor} />
+                  )}
+                </View>
+              </Text>
+              <Text style={styles.temperatureText}>
+                {displayWeather.temp.toFixed(0)}°F
+              </Text>
+
+              <Icon3
+                name={getWeatherIcon(displayWeather.conditions).name}
+                size={100}
+                color={getWeatherIcon(displayWeather.conditions).color}
+                style={styles.weatherIcon}
+              />
+              <Text style={styles.conditionText}>
+                {displayWeather.conditions}
+              </Text>
+              <Text style={styles.feelsLikeText}>
+                Feels like: {displayWeather.feelslike.toFixed(0)}°F
+              </Text>
+            </View>
+            <View style={styles.currentWeatherCard}>
+              <Text style={styles.cardContent}>Lat: {location.latitude}</Text>
+              <Text style={styles.cardContent}>Long: {location.longitude}</Text>
+              <Text style={styles.countryContent}>
+                Country: {countryName || 'Loading...'}
+              </Text>
+              <Text style={styles.cardContent}>
+                Weather: {displayWeather.conditions}
+              </Text>
+              <Text style={styles.cardContent}>
+                Temperature: {displayWeather.temp.toFixed(0)}°F
+              </Text>
+            </View>
+            <Text style={styles.sectionTitle}>Hourly Forecast</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              ref={hourlyScrollRef}
+              onContentSizeChange={() => {
+                if (hourlyScrollRef.current && !hourlyScrolled.current) {
+                  hourlyScrollRef.current.scrollTo({
+                    x: Math.max((currentHourIndex - 1) * 108, 0), // 108 is approx width of each card (100 + margin)
+                    animated: true,
+                  });
+                  hourlyScrolled.current = true;
+                }
+              }}
+            >
+              {weather.days[0].hours.map((hour, index) => {
+                const formattedTime = hour.datetime
+                  ? moment(hour.datetime, 'HH:mm:ss').format('h : 00 A')
+                  : 'Invalid time';
+                return (
+                  <View key={index} style={styles.hourlyCard}>
+                    <Text style={styles.hourlyTime}>{formattedTime}</Text>
+                    <Icon3
+                      name={getWeatherIcon(hour.conditions).name}
+                      size={40}
+                      color={getWeatherIcon(hour.conditions).color}
+                      style={styles.hourlyIcon}
+                    />
+                    <Text style={styles.hourlyTemp}>
+                      {Math.round(hour.temp)}°F
+                    </Text>
+                    <Text style={styles.hourlyCondition}>{hour.conditions}</Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity style={styles.toggleButton} onPress={handleExpandForecast}>
+              <Text style={styles.toggleButtonText}>
+                {expanded ? '14-Day Forecast' : '14-Day Forecast'}
+              </Text>
+              <Icon2
+                name={expanded ? 'chevron-up' : 'chevron-down'}
+                size={24}
+                color="#fff"
+                style={styles.toggleIcon}
+              />
+            </TouchableOpacity>
+
+            {expanded && (
+              <View>
+                <Text style={styles.sectionTitle}>14-Day Forecast</Text>
+                {forecastLoading ? (
+                  <View style={{alignItems: 'center', marginVertical: 20}}>
+                    <ActivityIndicator size="large" color="#fff" />
+                    <Text style={{color: '#fff', marginTop: 10}}>Please wait...</Text>
+                  </View>
                 ) : (
-                  <ActivityIndicator size="small" color={textColor} />
+                  <View>
+                    {weather.days.slice(1, 15).map((day, index) => (
+                      <Animated.View
+                        key={index}
+                        style={{
+                          opacity: forecastCardAnimated[index] || 1,
+                          transform: [{ translateY: forecastCardAnimated[index] ? forecastCardAnimated[index].interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) : 0 }],
+                        }}
+                      >
+                        <View style={styles.forecastCard}>
+                          <Text style={styles.forecastDate}>
+                            {moment(day.datetime).format('dddd, MMM Do')}
+                          </Text>
+                          <View style={styles.forecastDetails}>
+                            <Icon3
+                              name={getWeatherIcon(day.conditions).name}
+                              size={50}
+                              color={getWeatherIcon(day.conditions).color}
+                              style={styles.forecastIcon}
+                            />
+                            <Text style={styles.forecastTemp}>
+                              Day: {Math.round(day.tempmax)}°F | Night:{' '}
+                              {Math.round(day.tempmin)}°F
+                            </Text>
+                          </View>
+                          <Text style={styles.forecastCondition}>
+                            {day.conditions}
+                          </Text>
+
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}>
+                            {day.hours.map((hour, hourIndex) => {
+                              const formattedTime = hour.datetime
+                                ? moment(hour.datetime, 'HH:mm:ss').format('h : 00 A')
+                                : 'Invalid time';
+
+                              return (
+                                <View
+                                  key={hourIndex}
+                                  style={styles.hourlyForecastCard}>
+                                  <Text style={styles.hourlyForecastTime}>
+                                    {formattedTime}
+                                  </Text>
+                                  <Icon3
+                                    name={getWeatherIcon(hour.conditions).name}
+                                    size={40}
+                                    color={getWeatherIcon(hour.conditions).color}
+                                    style={styles.hourlyForecastIcon}
+                                  />
+                                  <Text style={styles.hourlyForecastTemp}>
+                                    {Math.round(hour.temp)}°F
+                                  </Text>
+                                  <Text style={styles.hourlyForecastCondition}>
+                                    {hour.conditions.split(' ')[0]}
+                                  </Text>
+                                </View>
+                              );
+                            })}
+                          </ScrollView>
+                        </View>
+                      </Animated.View>
+                    ))}
+                  </View>
                 )}
               </View>
-            </Text>
-            <Text style={styles.temperatureText}>
-              {Math.round(weather.currentConditions.temp)}°F
-            </Text>
-            <Icon
-              name={getWeatherIcon(weather.currentConditions.conditions)}
-              size={100}
-              color="#fff"
-              style={styles.weatherIcon}
-            />
-            <Text style={styles.conditionText}>
-              {weather.currentConditions.conditions}
-            </Text>
-            <Text style={styles.feelsLikeText}>
-              Feels like: {weather.currentConditions.feelslike}°F
-            </Text>
-          </View>
-          <View style={styles.currentWeatherCard}>
-            <Text style={styles.cardContent}>Lat: {location.latitude}</Text>
-            <Text style={styles.cardContent}>Long: {location.longitude}</Text>
-            <Text style={styles.countryContent}>
-              Country: {countryName || 'Loading...'}
-            </Text>
-            <Text style={styles.cardContent}>
-              Weather: {weather.currentConditions.conditions}
-            </Text>
-            <Text style={styles.cardContent}>
-              Temperature: {weather.currentConditions.temp}°F
-            </Text>
-          </View>
-          <Text style={styles.sectionTitle}>Hourly Forecast</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {weather.days[0].hours.slice(0, 24).map((hour, index) => {
-              const formattedTime = hour.datetime
-                ? moment(hour.datetime, 'HH:mm:ss').format('h : 00 A')
-                : 'Invalid time';
-
-              return (
-                <View key={index} style={styles.hourlyCard}>
-                  <Text style={styles.hourlyTime}>{formattedTime}</Text>
-                  <Icon
-                    name={getWeatherIcon(hour.conditions)}
-                    size={40}
-                    color="white"
-                    style={styles.hourlyIcon}
-                  />
-                  <Text style={styles.hourlyTemp}>
-                    {Math.round(hour.temp)}°F
-                  </Text>
-                  <Text style={styles.hourlyCondition}>{hour.conditions}</Text>
-                </View>
-              );
-            })}
-          </ScrollView>
-
-          <TouchableOpacity style={styles.toggleButton} onPress={toggleExpand}>
-            <Text style={styles.toggleButtonText}>
-              {expanded ? '5-Day Forecast' : '5-Day Forecast'}
-            </Text>
-            <Icon2
-              name={expanded ? 'chevron-up' : 'chevron-down'}
-              size={24}
-              color="#fff"
-              style={styles.toggleIcon}
-            />
-          </TouchableOpacity>
-
-          {expanded && (
-            <View>
-              <Text style={styles.sectionTitle}>5-Day Forecast</Text>
-              {weather.days.slice(0, 5).map((day, index) => (
-                <View key={index} style={styles.forecastCard}>
-                  <Text style={styles.forecastDate}>
-                    {moment(day.datetime).format('dddd, MMM Do')}
-                  </Text>
-                  <View style={styles.forecastDetails}>
-                    <Icon
-                      name={getWeatherIcon(day.conditions)}
-                      size={50}
-                      color="white"
-                      style={styles.forecastIcon}
-                    />
-                    <Text style={styles.forecastTemp}>
-                      Day: {Math.round(day.tempmax)}°F | Night:{' '}
-                      {Math.round(day.tempmin)}°F
-                    </Text>
-                  </View>
-                  <Text style={styles.forecastCondition}>{day.conditions}</Text>
-
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {weather.days[0].hours.slice(0, 24).map((hour, index) => {
-                      const formattedTime = hour.datetime
-                        ? moment(hour.datetime, 'HH:mm:ss').format('h : 00 A')
-                        : 'Invalid time';
-
-                      return (
-                        <View key={index} style={styles.hourlyCard}>
-                          <Text style={styles.hourlyTime}>{formattedTime}</Text>
-                          <Icon
-                            name={getWeatherIcon(hour.conditions)}
-                            size={40}
-                            color="white"
-                            style={styles.hourlyIcon}
-                          />
-                          <Text style={styles.hourlyTemp}>
-                            {Math.round(hour.temp)}°F
-                          </Text>
-                          <Text style={styles.hourlyCondition}>
-                            {hour.conditions}
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
-              ))}
+            )}
+            <TouchableOpacity
+              onPress={() =>
+                Linking.openURL(
+                  'mailto:superiorweather@gmail.com?subject=Proposal for advertisement&body=Hello Superior Weather Team,',
+                )
+              }
+              style={styles.videoContainer}>
+              <Video
+                source={require('../../assets/banner_video.mp4')}
+                onBuffer={onBuffer}
+                onError={onError}
+                style={styles.video}
+                controls={true}
+                repeat={true}
+                resizeMode="cover"
+                autoPlay={true}
+              />
+            </TouchableOpacity>
+            <View style={styles.webViewContainer}>
+              <WebView
+                source={{
+                  uri: 'https://player.twitch.tv/?channel=superiorweather&parent=com.example.superior_weather',
+                }}
+                style={styles.webView}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+              />
             </View>
-          )}
-
-          <TouchableOpacity
-            onPress={() =>
-              Linking.openURL(
-                'mailto:superiorweather@gmail.com?subject=Proposal for advertisement&body=Hello Superior Weather Team,',
-              )
-            }
-            style={styles.videoContainer}>
-            <Video
-              source={require('../../assets/banner_video.mp4')}
-              onBuffer={onBuffer}
-              onError={onError}
-              style={styles.video}
-              controls={true}
-              repeat={true}
-              resizeMode="cover"
-              autoPlay={true}
-            />
-          </TouchableOpacity>
-          <View style={styles.webViewContainer}>
-            <WebView
-              source={{
-                uri: 'https://player.twitch.tv/?channel=superiorweather&parent=com.example.superior_weather',
-              }}
-              style={styles.webView}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-            />
-          </View>
-          <View style={styles.videoContainer}>
-            <Image
-              source={require('../../assets/web_banner8.gif')}
-              style={styles.gif}
-            />
-          </View>
-
-          <TouchableOpacity
-            onPress={() => Linking.openURL('https://adamontheair.com')}
-            style={styles.videoContainer}>
-            <Video
-              source={require('../../assets/banner5.mp4')}
-              onBuffer={onBuffer}
-              onError={onError}
-              style={styles.video2}
-              controls={true}
-              repeat={true}
-              resizeMode="cover"
-              autoPlay={true}
-            />
-          </TouchableOpacity>
-        </ScrollView>
+            <View style={styles.videoContainer}>
+              <Image
+                source={require('../../assets/web_banner8.gif')}
+                style={styles.gif}
+              />
+            </View>
+            <TouchableOpacity
+              onPress={() => Linking.openURL('https://adamontheair.com')}
+              style={styles.videoContainer}>
+              <Video
+                source={require('../../assets/banner5.mp4')}
+                onBuffer={onBuffer}
+                onError={onError}
+                style={styles.video2}
+                controls={true}
+                repeat={true}
+                resizeMode="cover"
+                autoPlay={true}
+              />
+            </TouchableOpacity>
+          </ScrollView>
+        </Animated.View>
       </ImageBackground>
     );
   } else {
@@ -393,7 +586,7 @@ const HomeScreen = () => {
         </Text>
 
         <Image
-          source={require('../../assets/images/AppIcon.png')} // Your app's logo
+          source={require('../../assets/images/AppIcon.png')}
           style={styles.appLogo}
         />
         <Text style={styles.errorInstructionText}>
@@ -438,35 +631,20 @@ const HomeScreen = () => {
   }
 };
 
-const getWeatherIcon = condition => {
-  switch (condition) {
-    case 'Clear':
-      return 'sun-o';
-    case 'Clouds':
-      return 'cloud';
-    case 'Rain':
-      return 'umbrella';
-    case 'Snow':
-      return 'snowflake-o';
-    case 'Thunderstorm':
-      return 'bolt';
-    case 'Drizzle':
-      return 'tint';
-    case 'Mist':
-      return 'smog';
-    default:
-      return 'cloud';
-  }
-};
-
 const styles = StyleSheet.create({
   backgroundImage: {
     flex: 1,
     resizeMode: 'cover',
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'transparent',
     padding: 16,
     marginTop: 50,
   },
@@ -587,12 +765,28 @@ const styles = StyleSheet.create({
   },
   hourlyCard: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 18,
-    padding: 12,
+    borderRadius: 12,
+    padding: 10,
     marginRight: 8,
     alignItems: 'center',
     justifyContent: 'space-between',
-    width: 150,
+    width: 100,
+    height: 160,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  hourlyForecastCard: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 12,
+    padding: 10,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: 100,
+    height: 160,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
@@ -600,26 +794,50 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   hourlyTime: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
+    marginBottom: 5,
+  },
+  hourlyForecastTime: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 5,
   },
   hourlyIcon: {
-    marginVertical: 8,
+    marginVertical: 5,
+  },
+  hourlyForecastIcon: {
+    marginVertical: 5,
   },
   hourlyTemp: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#fff',
+    marginTop: 5,
+  },
+  hourlyForecastTemp: {
+    fontSize: 16,
+    color: '#fff',
+    marginTop: 5,
   },
   hourlyCondition: {
-    fontSize: 18,
+    fontSize: 16,
+    fontFamily: 'Raleway-Bold',
     color: '#fff',
     marginTop: 4,
-    fontWeight: 'bold',
     textAlign: 'center',
     width: '100%',
-    paddingHorizontal: 8,
-    fontFamily: 'Raleway-Regular',
+    paddingHorizontal: 2,
+  },
+  hourlyForecastCondition: {
+    fontSize: 16,
+    fontFamily: 'Raleway-Bold',
+    color: '#fff',
+    marginTop: 4,
+    textAlign: 'center',
+    width: '100%',
+    paddingHorizontal: 2,
   },
   toggleButton: {
     padding: 16,
@@ -727,10 +945,19 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   bold: {fontWeight: 'bold'},
-
   appLogo: {
     width: 50,
     height: 40,
+  },
+  loaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  animatedContent: {
+    flex: 1,
   },
 });
 
