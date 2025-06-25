@@ -180,10 +180,10 @@ const HomeScreen = () => {
     const currentHour = new Date().getHours();
 
     if (currentHour >= 5 && currentHour < 18) {
-      setBackgroundImage(require('../../assets/images/day.png'));
+      setBackgroundImage(require('../../assets/images/day3.jpeg'));
       setTextColor('#fff');
     } else {
-      setBackgroundImage(require('../../assets/images/night2.png'));
+      setBackgroundImage(require('../../assets/images/night3.jpeg'));
       setTextColor('#fff');
     }
   };
@@ -300,7 +300,7 @@ const HomeScreen = () => {
     return animatedValues;
   };
 
-  const forecastCardCount = 14;
+  const forecastCardCount = 5;
   const forecastCardAnimated = useStaggeredFadeIn(forecastCardCount, expanded && !forecastLoading);
 
   const hourlyScrollRef = useRef(null);
@@ -424,7 +424,7 @@ const HomeScreen = () => {
             </ScrollView>
             <TouchableOpacity style={styles.toggleButton} onPress={handleExpandForecast}>
               <Text style={styles.toggleButtonText}>
-                {expanded ? '14-Day Forecast' : '14-Day Forecast'}
+                {expanded ? '5-Day Forecast' : '5-Day Forecast'}
               </Text>
               <Icon2
                 name={expanded ? 'chevron-up' : 'chevron-down'}
@@ -436,7 +436,7 @@ const HomeScreen = () => {
 
             {expanded && (
               <View>
-                <Text style={styles.sectionTitle}>14-Day Forecast</Text>
+                <Text style={styles.sectionTitle}>5-Day Forecast</Text>
                 {forecastLoading ? (
                   <View style={{alignItems: 'center', marginVertical: 20}}>
                     <ActivityIndicator size="large" color="#fff" />
@@ -444,7 +444,7 @@ const HomeScreen = () => {
                   </View>
                 ) : (
                   <View>
-                    {weather.days.slice(1, 15).map((day, index) => (
+                    {weather.days.slice(1, 6).map((day, index) => (
                       <Animated.View
                         key={index}
                         style={{
